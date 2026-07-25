@@ -1,0 +1,21 @@
+{
+  "name": "renal-sense-root",
+  "version": "1.0.0",
+  "description": "Renal Sense Full-Stack Kidney Function Monitoring System",
+  "scripts": {
+    "install:all": "npm install && npm install --prefix simulator && npm install --prefix backend && npm install --prefix frontend",
+    "dev:simulator": "npm run dev --prefix simulator",
+    "dev:backend": "npm run dev --prefix backend",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "dev:ml": "cd ml-service && python app.py",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:simulator\" \"npm run dev:ml\" \"npm run dev:frontend\""
+  },
+  "dependencies": {
+    "concurrently": "^8.2.2",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "node-fetch": "^2.7.0",
+    "ws": "^8.21.1"
+  }
+}

@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Renal Sense - Real-Time Kidney Monitoring</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="icon" type="image/png" href="images/logo.png">
+</head>
+<body>
+    <!-- Header Section -->
+    <header class="main-header">
+        <div class="container header-container">
+            <div class="logo-wrapper">
+                <div class="logo-icon">
+                    <img src="images/logo.png" alt="Renal Sense Logo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+                </div>
+                <h1 class="project-name">Renal Sense</h1>
+            </div>
+            <nav class="main-nav">
+                <ul>
+                    <li><a href="index.html" class="nav-link">Home</a></li>
+                    <li><a href="renal-sense.html" class="nav-link active">Renal Sense</a></li>
+                    <li><a href="result.html" class="nav-link">Result</a></li>
+                    <li><a href="history.html" class="nav-link">History</a></li>
+                    <li><a href="about.html" class="nav-link">About</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Renal Sense Hero -->
+    <section class="live-test-hero">
+        <div class="container">
+            <div class="hero-content">
+                <h2>Real-Time Analysis in Progress</h2>
+                <p>Watch as our AI analyzes your kidney function in real-time</p>
+            </div>
+
+            <!-- Connection Manager -->
+            <div class="connection-manager" style="max-width: 600px; margin: 0 auto 30px auto; background: rgba(255, 255, 255, 0.95); border-radius: 12px; padding: 20px; box-shadow: 0 8px 32px rgba(31, 38, 135, 0.08); text-align: left;">
+                <h3 style="margin-bottom: 15px; color: #2c5364; display: flex; align-items: center; gap: 8px; font-size: 1.1rem; font-weight: 600;">
+                    <i class="fas fa-plug"></i> Device Connection Settings
+                </h3>
+                <div style="display: flex; gap: 10px; justify-content: center; margin-bottom: 15px; flex-wrap: wrap;">
+                    <button class="connection-btn active" id="modeBtn-simulation" onclick="setConnectionMode('simulation')" style="flex: 1; min-width: 150px; padding: 10px 12px; border: 2px solid #667eea; background: #667eea; color: white; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.3s;">
+                        <i class="fas fa-laptop"></i> Local Simulator
+                    </button>
+                    <button class="connection-btn" id="modeBtn-websocket" onclick="setConnectionMode('websocket')" style="flex: 1; min-width: 150px; padding: 10px 12px; border: 2px solid #ddd; background: white; color: #333; border-radius: 8px; cursor: pointer; font-weight: 500; font-size: 0.9rem; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.3s;">
+                        <i class="fas fa-wifi"></i> WiFi / Gateway
+                    </button>
+                    <button class="connection-btn" id="modeBtn-bluetooth" onclick="setConnectionMode('bluetooth')" style="flex: 1; min-width: 150px; padding: 10px 12px; border: 2px solid #ddd; background: white; color: #333; border-radius: 8px; cursor: pointer; font-weight: 500; font-size: 0.9rem; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.3s;">
+                        <i class="fab fa-bluetooth"></i> Bluetooth (BLE)
+                    </button>
+                </div>
+
+                <!-- Bluetooth Status Console -->
+                <div id="bleConsole" style="display: none; background: #f0f6fc; border-radius: 8px; padding: 12px 15px; border-left: 4px solid #0082fc;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-weight: 600; color: #2c5364; font-size: 0.9rem;">Bluetooth Controller</span>
+                        <a href="bluetooth-setup.html" target="_blank" style="font-size: 0.8rem; color: #0082fc; text-decoration: none; font-weight: 500;"><i class="fas fa-gear"></i> BLE Guide</a>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px;">
+                        <button id="bleConnectBtn" class="btn btn-primary" onclick="connectBluetooth()" style="padding: 6px 12px; font-size: 0.85rem; background: #0082fc; border: none; color: white; border-radius: 6px; cursor: pointer; font-weight: 500;">
+                            <i class="fab fa-bluetooth"></i> Connect BLE Device
+                        </button>
+                        <button id="bleDisconnectBtn" class="btn btn-secondary" onclick="disconnectBluetooth()" style="padding: 6px 12px; font-size: 0.85rem; background: #e2e8f0; border: none; color: #333; border-radius: 6px; cursor: pointer; font-weight: 500; display: none;">
+                            Disconnect
+                        </button>
+                        <span id="bleStatusLabel" style="font-weight: 500; font-size: 0.85rem; color: #666;">Status: Disconnected</span>
+                    </div>
+                    <div id="bleDetailsLabel" style="font-size: 0.75rem; color: #777; line-height: 1.4;">Pair with "RenalSense-Monitor" BLE device to read real-time values directly.</div>
+                </div>
+
+                <!-- WiFi Status Console -->
+                <div id="wifiConsole" style="display: none; background: #f3faf4; border-radius: 8px; padding: 12px 15px; border-left: 4px solid #2e7d32;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-weight: 600; color: #2e7d32; font-size: 0.9rem;">WiFi Server Connection</span>
+                        <a href="wifi-setup.html" target="_blank" style="font-size: 0.8rem; color: #2e7d32; text-decoration: none; font-weight: 500;"><i class="fas fa-gear"></i> WiFi Guide</a>
+                    </div>
+                    <div id="wifiStatusLabel" style="font-size: 0.85rem; color: #555; line-height: 1.4;">Waiting for incoming stream from ESP32 on server gateway...</div>
+                </div>
+            </div>
+
+            <!-- Patient Demographics Input -->
+            <div class="demographics-input" id="demographicsInput">
+                <h3 style="margin-bottom: 20px; color: #333;">Patient Information</h3>
+                <div style="display: flex; gap: 30px; justify-content: center; align-items: center; flex-wrap: wrap;">
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <label style="font-weight: 600; color: #555;">Gender:</label>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="gender-btn" data-gender="male" onclick="selectGender('male')" style="padding: 10px 20px; border: 2px solid #ddd; background: white; border-radius: 8px; cursor: pointer; font-weight: 500;">
+                                <i class="fas fa-mars"></i> Male
+                            </button>
+                            <button class="gender-btn" data-gender="female" onclick="selectGender('female')" style="padding: 10px 20px; border: 2px solid #ddd; background: white; border-radius: 8px; cursor: pointer; font-weight: 500;">
+                                <i class="fas fa-venus"></i> Female
+                            </button>
+                        </div>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <label for="ageInput" style="font-weight: 600; color: #555;">Age:</label>
+                        <input type="number" id="ageInput" min="1" max="120" placeholder="Enter age" style="padding: 10px 15px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; width: 150px;">
+                    </div>
+                </div>
+            </div>
+
+            <div class="test-controls">
+                <button id="startTestBtn" class="btn btn-primary" onclick="startTest()">
+                    <i class="fas fa-play"></i> Start Test
+                </button>
+                <button id="stopTestBtn" class="btn btn-secondary" onclick="stopTest()" style="display: none;">
+                    <i class="fas fa-stop"></i> Stop Test
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Test Status -->
+    <section class="test-status-section">
+        <div class="container">
+            <div class="status-cards">
+                <div class="status-card">
+                    <div class="status-header">
+                        <i class="fas fa-circle-notch"></i>
+                        <span>Test Status</span>
+                    </div>
+                    <div class="status-badge" id="statusBadge">
+                        <span id="statusText">Ready</span>
+                    </div>
+                </div>
+
+                <div class="status-card">
+                    <div class="status-header">
+                        <i class="fas fa-clock"></i>
+                        <span>Elapsed Time</span>
+                    </div>
+                    <div class="status-value" id="elapsedTime">0:00</div>
+                </div>
+
+                <div class="status-card">
+                    <div class="status-header">
+                        <i class="fas fa-signal"></i>
+                        <span>Data Quality</span>
+                    </div>
+                    <div class="status-value" id="dataQuality">--</div>
+                </div>
+
+                <div class="status-card">
+                    <div class="status-header">
+                        <i class="fas fa-database"></i>
+                        <span>Packets Received</span>
+                    </div>
+                    <div class="status-value"><span id="packetsReceived">0</span>/<span id="totalPackets">180</span></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Progress Indicator -->
+    <section class="progress-section">
+        <div class="container">
+            <div class="progress-header">
+                <h3>Test Progress</h3>
+                <span id="progressPercent" class="progress-percentage">0%</span>
+            </div>
+            <div class="progress-bar-large">
+                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+            </div>
+            <div class="progress-stages">
+                <div class="stage">
+                    <i class="fas fa-circle-check"></i>
+                    <span>Calibration</span>
+                </div>
+                <div class="stage">
+                    <i class="fas fa-circle-check"></i>
+                    <span>Baseline</span>
+                </div>
+                <div class="stage active">
+                    <i class="fas fa-circle"></i>
+                    <span>Data Collection</span>
+                </div>
+                <div class="stage">
+                    <i class="fas fa-circle"></i>
+                    <span>Analysis</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Real-Time Metrics Grid -->
+    <section class="live-metrics">
+        <div class="container">
+            <h3>Live Sensor Data</h3>
+            <div class="metrics-grid">
+                <div class="metric-card-live">
+                    <div class="metric-label">Heart Rate (ECG)</div>
+                    <div class="metric-value-large" id="heartRate">--</div>
+                    <div class="metric-unit">BPM</div>
+                    <div class="metric-bar">
+                        <div class="metric-bar-fill" id="heartRateBar" style="width: 70%"></div>
+                    </div>
+                </div>
+
+                <div class="metric-card-live">
+                    <div class="metric-label">Temperature</div>
+                    <div class="metric-value-large" id="temperature">--</div>
+                    <div class="metric-unit">°C</div>
+                    <div class="metric-bar">
+                        <div class="metric-bar-fill" id="temperatureBar" style="width: 80%"></div>
+                    </div>
+                </div>
+
+                <div class="metric-card-live">
+                    <div class="metric-label">SpO2 (Oxygen)</div>
+                    <div class="metric-value-large" id="spo2">--</div>
+                    <div class="metric-unit">%</div>
+                    <div class="metric-bar">
+                        <div class="metric-bar-fill" id="spo2Bar" style="width: 75%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Live Graphs -->
+    <section class="graphs-section">
+        <div class="container">
+            <h3>Real-Time Data Visualization</h3>
+            <div class="graphs-grid">
+                <div class="graph-card">
+                    <h4>Heart Rate Trend</h4>
+                    <canvas id="hrChart"></canvas>
+                </div>
+                <div class="graph-card">
+                    <h4>SpO2 Trend</h4>
+                    <canvas id="spo2Chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Next Steps -->
+    <section class="next-steps">
+        <div class="container">
+            <button id="viewResultBtn" class="btn btn-success" onclick="viewResults()" style="display: none;">
+                <i class="fas fa-check-circle"></i> View Results
+            </button>
+            <button id="newTestBtn" class="btn btn-primary" onclick="startNewTest()" style="display: none;">
+                <i class="fas fa-redo"></i> Run Another Test
+            </button>
+        </div>
+    </section>
+
+    <script src="js/main.js"></script>
+    <script src="js/bluetooth-controller.js"></script>
+    <script src="js/renal-sense.js"></script>
+</body>
+</html>
