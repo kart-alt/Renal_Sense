@@ -11,6 +11,11 @@
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:simulator\" \"npm run dev:ml\" \"npm run dev:frontend\""
   },
   "dependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "node-fetch": "^2.7.0",
+    "ws": "^8.21.1"
   }
 }

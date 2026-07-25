@@ -21,17 +21,32 @@ async function initResultPage() {
 document.addEventListener('DOMContentLoaded', initResultPage);
 
 function initializeResultData() {
-    // Simulate getting result from test
-    const testResults = {
-        eGFR: 78,
-        heartRate: 72,
-        temperature: 36.8,
-        quality: 98,
-        confidence: 94,
-        riskLevel: 'Low',
-        status: 'Normal Function',
-        stage: 'Normal Function'
-    };
+    // Retrieve actual results from session storage if available
+    const savedResults = sessionStorage.getItem('patientResults');
+    let testResults = null;
+    
+    if (savedResults) {
+        try {
+            testResults = JSON.parse(savedResults);
+            console.log('Loaded actual test results from storage:', testResults);
+        } catch (e) {
+            console.error('Error parsing saved results:', e);
+        }
+    }
+    
+    // Fallback if not available
+    if (!testResults) {
+        testResults = {
+            eGFR: 78,
+            heartRate: 72,
+            temperature: 36.8,
+            quality: 98,
+            confidence: 94,
+            riskLevel: 'Low',
+            status: 'Normal Function',
+            stage: 'Normal Function'
+        };
+    }
     
     // Store current results for chatbot
     currentTestResults = testResults;
