@@ -25,6 +25,7 @@
                     <li><a href="index.html" class="nav-link">Home</a></li>
                     <li><a href="renal-sense.html" class="nav-link active">Renal Sense</a></li>
                     <li><a href="result.html" class="nav-link">Result</a></li>
+                    <li><a href="chatbot.html" class="nav-link">Chatbot</a></li>
                     <li><a href="history.html" class="nav-link">History</a></li>
                     <li><a href="about.html" class="nav-link">About</a></li>
                 </ul>
@@ -36,52 +37,115 @@
     <section class="live-test-hero">
         <div class="container">
             <div class="hero-content">
-                <h2>Real-Time Analysis in Progress</h2>
-                <p>Watch as our AI analyzes your kidney function in real-time</p>
+                <h2>Real-Time Kidney Function Monitoring</h2>
+                <p>Non-invasive physiological telemetry powered by advanced AI prediction</p>
+            </div>
+
+            <!-- Live Hardware Status Banner -->
+            <div id="hardwareLiveBanner" style="max-width: 640px; margin: 0 auto 20px auto; padding: 12px 18px; border-radius: 10px; background: #fef2f2; border: 1px solid #fee2e2; color: #991b1b; display: flex; align-items: center; justify-content: space-between; font-size: 0.92rem; font-weight: 500; transition: all 0.3s; box-shadow: 0 4px 12px rgba(0,0,0,0.04);">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span id="hwStatusDot" style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: #ef4444; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);"></span>
+                    <span id="hwBannerText">Hardware Disconnected — Connect device below to begin monitoring</span>
+                </div>
+                <span id="hwSensorPill" style="font-size: 0.78rem; padding: 3px 10px; border-radius: 12px; background: rgba(0,0,0,0.06); font-weight: 600;">No Signal</span>
             </div>
 
             <!-- Connection Manager -->
-            <div class="connection-manager" style="max-width: 600px; margin: 0 auto 30px auto; background: rgba(255, 255, 255, 0.95); border-radius: 12px; padding: 20px; box-shadow: 0 8px 32px rgba(31, 38, 135, 0.08); text-align: left;">
-                <h3 style="margin-bottom: 15px; color: #2c5364; display: flex; align-items: center; gap: 8px; font-size: 1.1rem; font-weight: 600;">
-                    <i class="fas fa-plug"></i> Device Connection Settings
-                </h3>
-                <div style="display: flex; gap: 10px; justify-content: center; margin-bottom: 15px; flex-wrap: wrap;">
-                    <button class="connection-btn active" id="modeBtn-simulation" onclick="setConnectionMode('simulation')" style="flex: 1; min-width: 150px; padding: 10px 12px; border: 2px solid #667eea; background: #667eea; color: white; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.3s;">
-                        <i class="fas fa-laptop"></i> Local Simulator
+            <div class="connection-manager" style="max-width: 640px; margin: 0 auto 30px auto; background: rgba(255, 255, 255, 0.98); border-radius: 14px; padding: 22px; box-shadow: 0 10px 35px rgba(31, 38, 135, 0.08); text-align: left; border: 1px solid #e2e8f0;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3 style="color: #1e293b; display: flex; align-items: center; gap: 8px; font-size: 1.05rem; font-weight: 600; margin: 0;">
+                        <i class="fas fa-microchip" style="color: #3b82f6;"></i> Hardware Connection Options
+                    </h3>
+                    <a href="../firmware/README.md" target="_blank" style="font-size: 0.8rem; color: #3b82f6; text-decoration: none; font-weight: 500;">
+                        <i class="fas fa-file-code"></i> Firmware & Wiring Guide
+                    </a>
+                </div>
+
+                <!-- Connection Mode Tabs -->
+                <div style="display: flex; gap: 8px; justify-content: center; margin-bottom: 18px; flex-wrap: wrap;">
+                    <button class="connection-btn active" id="modeBtn-serial" onclick="setConnectionMode('serial')" style="flex: 1; min-width: 140px; padding: 10px 12px; border: 2px solid #0284c7; background: #0284c7; color: white; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.88rem; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s;">
+                        <i class="fas fa-plug"></i> USB Direct (Cable)
                     </button>
-                    <button class="connection-btn" id="modeBtn-websocket" onclick="setConnectionMode('websocket')" style="flex: 1; min-width: 150px; padding: 10px 12px; border: 2px solid #ddd; background: white; color: #333; border-radius: 8px; cursor: pointer; font-weight: 500; font-size: 0.9rem; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.3s;">
-                        <i class="fas fa-wifi"></i> WiFi / Gateway
+                    <button class="connection-btn" id="modeBtn-websocket" onclick="setConnectionMode('websocket')" style="flex: 1; min-width: 140px; padding: 10px 12px; border: 2px solid #ddd; background: white; color: #333; border-radius: 8px; cursor: pointer; font-weight: 500; font-size: 0.88rem; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s;">
+                        <i class="fas fa-wifi"></i> WiFi / Network
                     </button>
-                    <button class="connection-btn" id="modeBtn-bluetooth" onclick="setConnectionMode('bluetooth')" style="flex: 1; min-width: 150px; padding: 10px 12px; border: 2px solid #ddd; background: white; color: #333; border-radius: 8px; cursor: pointer; font-weight: 500; font-size: 0.9rem; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.3s;">
-                        <i class="fab fa-bluetooth"></i> Bluetooth (BLE)
+                    <button class="connection-btn" id="modeBtn-bluetooth" onclick="setConnectionMode('bluetooth')" style="flex: 1; min-width: 140px; padding: 10px 12px; border: 2px solid #ddd; background: white; color: #333; border-radius: 8px; cursor: pointer; font-weight: 500; font-size: 0.88rem; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s;">
+                        <i class="fab fa-bluetooth"></i> Bluetooth BLE
+                    </button>
+                    <button class="connection-btn" id="modeBtn-simulation" onclick="setConnectionMode('simulation')" style="flex: 1; min-width: 140px; padding: 10px 12px; border: 2px solid #ddd; background: white; color: #333; border-radius: 8px; cursor: pointer; font-weight: 500; font-size: 0.88rem; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s;">
+                        <i class="fas fa-flask"></i> Demo Simulator
                     </button>
                 </div>
 
-                <!-- Bluetooth Status Console -->
-                <div id="bleConsole" style="display: none; background: #f0f6fc; border-radius: 8px; padding: 12px 15px; border-left: 4px solid #0082fc;">
+                <!-- USB Serial Console -->
+                <div id="serialConsole" style="display: block; background: #f0f7ff; border-radius: 8px; padding: 14px 16px; border-left: 4px solid #0284c7;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                        <span style="font-weight: 600; color: #2c5364; font-size: 0.9rem;">Bluetooth Controller</span>
+                        <span style="font-weight: 600; color: #0369a1; font-size: 0.92rem;"><i class="fas fa-cable-car"></i> Web Serial Controller</span>
+                        <span style="font-size: 0.78rem; background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 6px; font-weight: 500;">115200 Baud</span>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px;">
+                        <button id="serialConnectBtn" class="btn btn-primary" onclick="connectSerial()" style="padding: 7px 14px; font-size: 0.85rem; background: #0284c7; border: none; color: white; border-radius: 6px; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+                            <i class="fas fa-plug"></i> Connect USB Device
+                        </button>
+                        <button id="serialDisconnectBtn" class="btn btn-secondary" onclick="disconnectSerial()" style="padding: 7px 14px; font-size: 0.85rem; background: #e2e8f0; border: none; color: #333; border-radius: 6px; cursor: pointer; font-weight: 500; display: none;">
+                            Disconnect
+                        </button>
+                        <span id="serialStatusLabel" style="font-weight: 500; font-size: 0.85rem; color: #64748b;">Status: Plug ESP32 into USB & click Connect</span>
+                    </div>
+                    <div style="font-size: 0.78rem; color: #64748b; line-height: 1.4;">
+                        Direct connection via Chrome / Edge browser Web Serial. Streams real-time MAX30102 pulse oximeter & ECG readings.
+                    </div>
+                </div>
+
+                <!-- WiFi Status Console -->
+                <div id="wifiConsole" style="display: none; background: #f3faf4; border-radius: 8px; padding: 14px 16px; border-left: 4px solid #2e7d32;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-weight: 600; color: #2e7d32; font-size: 0.92rem;"><i class="fas fa-wifi"></i> WiFi Server Connection</span>
+                        <a href="wifi-setup.html" target="_blank" style="font-size: 0.8rem; color: #2e7d32; text-decoration: none; font-weight: 500;"><i class="fas fa-gear"></i> WiFi Guide</a>
+                    </div>
+                    <div id="wifiStatusLabel" style="font-size: 0.85rem; color: #555; line-height: 1.4; margin-bottom: 6px;">
+                        Listening for incoming stream from ESP32 on server gateway...
+                    </div>
+                    <div style="font-size: 0.78rem; color: #777;">
+                        Ensure your ESP32 sketch has your PC's IP configured. Handshake packets are recognized automatically.
+                    </div>
+                </div>
+
+                <!-- Bluetooth Status Console -->
+                <div id="bleConsole" style="display: none; background: #f0f6fc; border-radius: 8px; padding: 14px 16px; border-left: 4px solid #0082fc;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-weight: 600; color: #2c5364; font-size: 0.92rem;"><i class="fab fa-bluetooth"></i> Bluetooth Controller</span>
                         <a href="bluetooth-setup.html" target="_blank" style="font-size: 0.8rem; color: #0082fc; text-decoration: none; font-weight: 500;"><i class="fas fa-gear"></i> BLE Guide</a>
                     </div>
                     <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px;">
-                        <button id="bleConnectBtn" class="btn btn-primary" onclick="connectBluetooth()" style="padding: 6px 12px; font-size: 0.85rem; background: #0082fc; border: none; color: white; border-radius: 6px; cursor: pointer; font-weight: 500;">
+                        <button id="bleConnectBtn" class="btn btn-primary" onclick="connectBluetooth()" style="padding: 7px 14px; font-size: 0.85rem; background: #0082fc; border: none; color: white; border-radius: 6px; cursor: pointer; font-weight: 500;">
                             <i class="fab fa-bluetooth"></i> Connect BLE Device
                         </button>
-                        <button id="bleDisconnectBtn" class="btn btn-secondary" onclick="disconnectBluetooth()" style="padding: 6px 12px; font-size: 0.85rem; background: #e2e8f0; border: none; color: #333; border-radius: 6px; cursor: pointer; font-weight: 500; display: none;">
+                        <button id="bleDisconnectBtn" class="btn btn-secondary" onclick="disconnectBluetooth()" style="padding: 7px 14px; font-size: 0.85rem; background: #e2e8f0; border: none; color: #333; border-radius: 6px; cursor: pointer; font-weight: 500; display: none;">
                             Disconnect
                         </button>
                         <span id="bleStatusLabel" style="font-weight: 500; font-size: 0.85rem; color: #666;">Status: Disconnected</span>
                     </div>
-                    <div id="bleDetailsLabel" style="font-size: 0.75rem; color: #777; line-height: 1.4;">Pair with "RenalSense-Monitor" BLE device to read real-time values directly.</div>
+                    <div id="bleDetailsLabel" style="font-size: 0.78rem; color: #777; line-height: 1.4;">Pair with "RenalSense-Monitor" BLE device to read real-time values directly.</div>
                 </div>
 
-                <!-- WiFi Status Console -->
-                <div id="wifiConsole" style="display: none; background: #f3faf4; border-radius: 8px; padding: 12px 15px; border-left: 4px solid #2e7d32;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                        <span style="font-weight: 600; color: #2e7d32; font-size: 0.9rem;">WiFi Server Connection</span>
-                        <a href="wifi-setup.html" target="_blank" style="font-size: 0.8rem; color: #2e7d32; text-decoration: none; font-weight: 500;"><i class="fas fa-gear"></i> WiFi Guide</a>
+                <!-- Simulation Info Console -->
+                <div id="simulationConsole" style="display: none; background: #faf5ff; border-radius: 8px; padding: 14px 16px; border-left: 4px solid #9333ea;">
+                    <div style="font-weight: 600; color: #7e22ce; font-size: 0.92rem; margin-bottom: 6px;">
+                        <i class="fas fa-vial"></i> Demo Simulation Mode
                     </div>
-                    <div id="wifiStatusLabel" style="font-size: 0.85rem; color: #555; line-height: 1.4;">Waiting for incoming stream from ESP32 on server gateway...</div>
+                    <div style="font-size: 0.85rem; color: #6b21a8; line-height: 1.4;">
+                        Allows demonstration of live charts and ML predictions without requiring a physical ESP32 or sensors attached.
+                    </div>
+                </div>
+
+                <!-- Smart Auto-Run & Guard Settings -->
+                <div style="margin-top: 16px; padding-top: 14px; border-top: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 0.88rem; color: #334155; font-weight: 500; cursor: pointer;">
+                        <input type="checkbox" id="smartAutoRunCheck" checked style="width: 17px; height: 17px; accent-color: #0284c7; cursor: pointer;">
+                        <span><i class="fas fa-bolt" style="color: #f59e0b;"></i> <strong>Smart Auto-Run:</strong> Start test automatically when hardware connects & sensor is placed</span>
+                    </label>
+                    <span id="hardwareGuardHint" style="font-size: 0.78rem; color: #64748b; background: #f1f5f9; padding: 3px 8px; border-radius: 6px;">Requires hardware</span>
                 </div>
             </div>
 
@@ -102,7 +166,7 @@
                     </div>
                     <div style="display: flex; flex-direction: column; gap: 10px;">
                         <label for="ageInput" style="font-weight: 600; color: #555;">Age:</label>
-                        <input type="number" id="ageInput" min="1" max="120" placeholder="Enter age" style="padding: 10px 15px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; width: 150px;">
+                        <input type="number" id="ageInput" min="1" max="120" placeholder="Enter age" value="50" style="padding: 10px 15px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; width: 150px;">
                     </div>
                 </div>
             </div>
@@ -159,44 +223,71 @@
         </div>
     </section>
 
-    <!-- Progress Indicator -->
+    <!-- Progress Tracker -->
     <section class="progress-section">
         <div class="container">
-            <div class="progress-header">
-                <h3>Test Progress</h3>
-                <span id="progressPercent" class="progress-percentage">0%</span>
+            <div class="progress-bar-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                </div>
+                <div class="progress-text">
+                    <span>Progress: <strong id="progressPercent">0%</strong></span>
+                    <span id="dataStatus">Awaiting Telemetry</span>
+                </div>
             </div>
-            <div class="progress-bar-large">
-                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
-            </div>
-            <div class="progress-stages">
-                <div class="stage">
-                    <i class="fas fa-circle-check"></i>
-                    <span>Calibration</span>
+
+            <!-- Stages of Analysis -->
+            <div class="analysis-stages">
+                <div class="stage active" id="stage1">
+                    <div class="stage-icon">
+                        <i class="fas fa-circle-check"></i>
+                    </div>
+                    <div class="stage-info">
+                        <h5>Hardware Pairing</h5>
+                        <p>Link physical sensor</p>
+                    </div>
                 </div>
-                <div class="stage">
-                    <i class="fas fa-circle-check"></i>
-                    <span>Baseline</span>
+
+                <div class="stage" id="stage2">
+                    <div class="stage-icon">
+                        <i class="fas fa-circle-notch fa-spin"></i>
+                    </div>
+                    <div class="stage-info">
+                        <h5>Signal Acquisition</h5>
+                        <p>Capturing PPG & ECG</p>
+                    </div>
                 </div>
-                <div class="stage active">
-                    <i class="fas fa-circle"></i>
-                    <span>Data Collection</span>
+
+                <div class="stage" id="stage3">
+                    <div class="stage-icon">
+                        <i class="fas fa-circle"></i>
+                    </div>
+                    <div class="stage-info">
+                        <h5>ML Feature Extraction</h5>
+                        <p>Computing vitals & variance</p>
+                    </div>
                 </div>
-                <div class="stage">
-                    <i class="fas fa-circle"></i>
-                    <span>Analysis</span>
+
+                <div class="stage" id="stage4">
+                    <div class="stage-icon">
+                        <i class="fas fa-circle"></i>
+                    </div>
+                    <div class="stage-info">
+                        <h5>eGFR Analysis</h5>
+                        <p>Kidney risk evaluation</p>
+                    </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Real-Time Metrics Grid -->
-    <section class="live-metrics">
+    <!-- Real-Time Metrics Display -->
+    <section class="live-metrics-section">
         <div class="container">
-            <h3>Live Sensor Data</h3>
-            <div class="metrics-grid">
+            <h3>Live Telemetry Stream</h3>
+            <div class="metrics-grid-live">
                 <div class="metric-card-live">
-                    <div class="metric-label">Heart Rate (ECG)</div>
+                    <div class="metric-label">Heart Rate (ECG / PPG)</div>
                     <div class="metric-value-large" id="heartRate">--</div>
                     <div class="metric-unit">BPM</div>
                     <div class="metric-bar">
@@ -255,6 +346,7 @@
     </section>
 
     <script src="js/main.js"></script>
+    <script src="js/serial-controller.js"></script>
     <script src="js/bluetooth-controller.js"></script>
     <script src="js/renal-sense.js"></script>
 </body>

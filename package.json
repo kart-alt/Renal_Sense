@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "description": "Renal Sense Full-Stack Kidney Function Monitoring System",
   "scripts": {
+    "start": "node server.js",
+    "server": "node server.js",
+    "ml": "python ml_api/app.py",
+    "all": "concurrently --kill-others \"npm run server\" \"npm run ml\"",
     "install:all": "npm install && npm install --prefix simulator && npm install --prefix backend && npm install --prefix frontend",
     "dev:simulator": "npm run dev --prefix simulator",
     "dev:backend": "npm run dev --prefix backend",

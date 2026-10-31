@@ -13,6 +13,10 @@ model = None
 def load_or_create_model():
     global model
     model_path = 'egfr_model.pkl'
+    if not os.path.exists(model_path):
+        alt_path = os.path.join(os.path.dirname(__file__), '..', 'egfr_model.pkl')
+        if os.path.exists(alt_path):
+            model_path = alt_path
     
     if os.path.exists(model_path):
         # Load existing model

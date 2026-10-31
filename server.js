@@ -26,6 +26,30 @@ const wss = new WebSocket.Server({ server });
 // Store connected clients
 const clients = new Set();
 
+// Hardware Connection Management
+const hardwareState = {
+    connected: false,
+    deviceId: null,
+    deviceType: 'None', // 'USB-Serial', 'WiFi-ESP32', 'BLE'
+    ip: null,
+    lastSeen: 0,
+    battery: 100,
+    fingerDetected: false,
+    autoRun: true
+};
+
+// Collected telemetry during an active test (for real ML averages)
+let testCollectedData = {
+    heartRates: [],
+    temperatures: [],
+    spo2Values: []
+};
+
+// Simulation timer handle (only active when demo simulation explicitly requested)
+let simulationInterval = null;
+let currentTestMode = 'hardware'; // 'hardware' or 'simulation'
+
+
 // Serve the main page
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -36,36 +60,135 @@ app.get('/wifi-setup', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'wifi-setup.html'));
 });
 
+// Hardware Connection & Status Endpoints
+app.get('/api/hardware/status', (req, res) => {
+    res.json({
+        success: true,
+        hardware: hardwareState,
+        testInProgress,
+        packetCount,
+        totalPackets: TOTAL_PACKETS,
+        testMode: currentTestMode
+    });
+});
+
+app.post('/api/hardware/connect', (req, res) => {
+    hardwareState.connected = true;
+    hardwareState.deviceId = req.body.deviceId || 'ESP32-RENAL-01';
+    hardwareState.deviceType = req.body.deviceType || 'WiFi-ESP32';
+    hardwareState.ip = req.ip || req.body.ip || 'Local';
+    hardwareState.lastSeen = Date.now();
+    hardwareState.fingerDetected = req.body.fingerDetected !== undefined ? req.body.fingerDetected : true;
+    hardwareState.battery = req.body.battery || 95;
+
+    console.log(`🔌 Hardware Registered: ${hardwareState.deviceId} via ${hardwareState.deviceType}`);
+
+    broadcastMessage({
+        type: 'hardware_status',
+        payload: hardwareState
+    });
+
+    res.json({
+        success: true,
+        message: 'Hardware connected',
+        hardware: hardwareState
+    });
+});
+
+app.post('/api/hardware/disconnect', (req, res) => {
+    hardwareState.connected = false;
+    hardwareState.deviceId = null;
+    hardwareState.deviceType = 'None';
+    hardwareState.fingerDetected = false;
+
+    console.log('🔌 Hardware Marked Disconnected');
+
+    broadcastMessage({
+        type: 'hardware_status',
+        payload: hardwareState
+    });
+
+    res.json({ success: true, message: 'Hardware marked disconnected' });
+});
+
 // REST API endpoint for ESP32 to send sensor data
 app.post('/api/sensor-data', async (req, res) => {
     try {
         const sensorData = req.body;
-        console.log('📊 Received sensor data from ESP32:', sensorData);
-        
-        // Broadcast sensor data to all connected WebSocket clients
+        const now = Date.now();
+        const wasConnected = hardwareState.connected;
+
+        // Update hardware state
+        hardwareState.connected = true;
+        hardwareState.lastSeen = now;
+        hardwareState.deviceId = sensorData.deviceId || hardwareState.deviceId || 'ESP32-RENAL-01';
+        hardwareState.deviceType = sensorData.deviceType || hardwareState.deviceType || 'WiFi-ESP32';
+        hardwareState.battery = sensorData.battery || hardwareState.battery || 95;
+        hardwareState.fingerDetected = sensorData.fingerDetected !== undefined ? sensorData.fingerDetected : true;
+
+        if (!wasConnected) {
+            console.log(`🔌 Hardware active and streaming: ${hardwareState.deviceId}`);
+            broadcastMessage({
+                type: 'hardware_status',
+                payload: hardwareState
+            });
+        }
+
+        // Broadcast sensor data to connected dashboard clients
         broadcastMessage({
             type: 'sensor_update',
             payload: sensorData
         });
-        
-        // Automatically send data to ML model for prediction
-        console.log('🤖 Sending data to ML model for prediction...');
-        const predictionResult = await sendToMLModel(sensorData);
-        
-        if (predictionResult.success) {
-            console.log('✅ ML Prediction received:', predictionResult.prediction);
-            
-            // Broadcast prediction results to all connected clients
+
+        // If test is currently active, accumulate data and advance packet count
+        if (testInProgress) {
+            const hr = Number(sensorData.heartRate || sensorData.ecg?.heartRate || 72);
+            const temp = Number(sensorData.temperature || 36.8);
+            const spo2 = Number(sensorData.spo2 || sensorData.spO2 || 98);
+
+            testCollectedData.heartRates.push(hr);
+            testCollectedData.temperatures.push(temp);
+            testCollectedData.spo2Values.push(spo2);
+
+            packetCount++;
+
             broadcastMessage({
-                type: 'prediction_result',
-                payload: predictionResult
+                type: 'test_progress',
+                payload: {
+                    testId: `TEST-${testSessionId.toString().padStart(3, '0')}`,
+                    packetsReceived: packetCount,
+                    totalPackets: TOTAL_PACKETS
+                }
             });
+
+            // When target packets reached, compute real ML prediction
+            if (packetCount >= TOTAL_PACKETS) {
+                testInProgress = false;
+                const avgHR = testCollectedData.heartRates.reduce((a, b) => a + b, 0) / (testCollectedData.heartRates.length || 1);
+                const avgTemp = testCollectedData.temperatures.reduce((a, b) => a + b, 0) / (testCollectedData.temperatures.length || 1);
+                const avgSpO2 = testCollectedData.spo2Values.reduce((a, b) => a + b, 0) / (testCollectedData.spo2Values.length || 1);
+
+                console.log(`🏁 Hardware Test Complete. Averages: HR=${avgHR.toFixed(1)}, Temp=${avgTemp.toFixed(1)}, SpO2=${avgSpO2.toFixed(1)}`);
+
+                const predictionResult = await sendToMLModel({
+                    heart_rate: avgHR,
+                    temperature: avgTemp,
+                    spo2: avgSpO2,
+                    demographics: patientDemographics || { gender: 'male', age: 50 }
+                });
+
+                broadcastMessage({
+                    type: 'test_completed',
+                    payload: {
+                        mlResults: predictionResult.success ? predictionResult.prediction : null
+                    }
+                });
+            }
         }
-        
+
         res.status(200).json({ 
             success: true, 
-            message: 'Sensor data received and processed successfully',
-            prediction: predictionResult.success ? predictionResult : null
+            hardware: hardwareState
         });
     } catch (error) {
         console.error('❌ Error processing sensor data:', error);
@@ -151,36 +274,39 @@ async function sendToMLModel(sensorData) {
     }
 }
 
-// Endpoint to start a test
+// Endpoint to start a test (Smart Hardware-aware)
 app.post('/api/start-test', (req, res) => {
-    console.log('Starting new test');
-
-    // Store demographics if provided
-    if (req.body.demographics) {
-        patientDemographics = req.body.demographics;
+    const { demographics, mode, requireHardware } = req.body || {};
+    if (demographics) {
+        patientDemographics = demographics;
         console.log('👤 Patient demographics stored:', patientDemographics);
     }
 
-    // Broadcast test start message
-    broadcastMessage({
-        type: 'test_started'
-    });
+    const testMode = mode || currentTestMode || 'hardware';
+
+    // Smart Hardware Check: If in hardware mode and device is required, ensure it is connected!
+    if (testMode === 'hardware' && requireHardware && !hardwareState.connected) {
+        return res.status(400).json({
+            success: false,
+            error: 'DEVICE_NOT_CONNECTED',
+            message: 'Physical hardware device is not connected. Please connect your ESP32 or switch to demo simulation.'
+        });
+    }
+
+    startNewTest(testMode);
 
     res.status(200).json({
         success: true,
-        message: 'Test started successfully'
+        message: `Test started in ${testMode} mode`,
+        testId: `TEST-${testSessionId.toString().padStart(3, '0')}`,
+        hardwareConnected: hardwareState.connected
     });
 });
 
 // Endpoint to stop a test
 app.post('/api/stop-test', (req, res) => {
     console.log('Stopping test');
-    
-    // Broadcast test stop message
-    broadcastMessage({
-        type: 'test_stopped'
-    });
-    
+    stopTest();
     res.status(200).json({ 
         success: true, 
         message: 'Test stopped successfully' 
@@ -343,11 +469,11 @@ app.post('/api/chatbot', async (req, res) => {
 });
 
 /**
- * Generate AI response using Google Generative AI API
+ * Generate AI response using xAI Grok API
  * Fallback to local generation if API not available
  */
 async function generateAIResponse(userMessage, patientResults, conversationHistory) {
-    const apiKey = process.env.GOOGLE_AI_API_KEY || '';
+    const apiKey = process.env.GROK_API_KEY || '';
     
     // Build patient context
     const patientContext = patientResults ? `
@@ -359,15 +485,6 @@ async function generateAIResponse(userMessage, patientResults, conversationHisto
     - Temperature: ${patientResults.temperature || '--'}°C
     - Test Confidence: ${patientResults.confidence || '--'}%
     ` : '';
-    
-    // Build conversation context
-    let conversationContext = '';
-    if (conversationHistory && conversationHistory.length > 0) {
-        conversationContext = 'Previous conversation:\n';
-        conversationHistory.slice(-4).forEach(msg => {
-            conversationContext += `${msg.role}: ${msg.content}\n`;
-        });
-    }
     
     const systemPrompt = `You are a compassionate and knowledgeable kidney health assistant. Your role is to provide personalized health tips and guidance based on the patient's test results.
 
@@ -388,9 +505,9 @@ Guidelines:
 Remember: Always prioritize patient safety and recommend professional medical consultation for serious concerns.`;
     
     try {
-        // Try using Google Generative AI API if key is available
+        // Try using Grok API if key is available
         if (apiKey) {
-            return await callGoogleGenAI(userMessage, systemPrompt, conversationContext, apiKey);
+            return await callGrokAPI(userMessage, systemPrompt, conversationHistory, apiKey);
         } else {
             // Fallback to local AI generation
             return generateLocalAIResponse(userMessage, patientResults, conversationHistory);
@@ -402,69 +519,53 @@ Remember: Always prioritize patient safety and recommend professional medical co
 }
 
 /**
- * Call Google Generative AI API (Gemini) with Enhanced Features
- * Supports: Chat, Vision, Code Analysis, UI Automation
+ * Call xAI Grok API (OpenAI Compatible)
  */
-async function callGoogleGenAI(userMessage, systemPrompt, conversationContext, apiKey) {
+async function callGrokAPI(userMessage, systemPrompt, conversationHistory, apiKey) {
     try {
-        // Use gemini-2.5-flash model (latest, most capable, free tier)
-        // Other options: gemini-2.5-pro, gemini-2.0-flash, gemini-pro-latest
-        const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const model = process.env.GROK_MODEL || 'grok-2-latest';
+        const url = 'https://api.x.ai/v1/chat/completions';
         
-        console.log(`📡 Calling Gemini API (${model})...`);
+        console.log(`📡 Calling Grok API (${model})...`);
         console.log(`🔑 API Key present: ${apiKey ? 'Yes ✓' : 'No ✗'}`);
-        console.log(`🌐 API URL: ${url.substring(0, 80)}...`);
         
-        // Build request body with safety settings and temperature
+        // Build messages array
+        const messages = [
+            { role: "system", content: systemPrompt }
+        ];
+        
+        if (conversationHistory && conversationHistory.length > 0) {
+            conversationHistory.slice(-4).forEach(msg => {
+                const mappedRole = msg.role.toLowerCase() === 'user' ? 'user' : 'assistant';
+                messages.push({ role: mappedRole, content: msg.content });
+            });
+        }
+        
+        messages.push({ role: "user", content: userMessage });
+        
         const requestBody = {
-            contents: [{
-                role: 'user',
-                parts: [{
-                    text: `${systemPrompt}\n\n${conversationContext}\n\nUser question: ${userMessage}`
-                }]
-            }],
-            generationConfig: {
-                temperature: 0.7,  // Balance between creativity and consistency
-                topK: 40,
-                topP: 0.95,
-                maxOutputTokens: 8192  // Increased from 1024 to allow complete responses
-            },
-            safetySettings: [
-                {
-                    category: 'HARM_CATEGORY_HARASSMENT',
-                    threshold: 'BLOCK_MEDIUM_AND_ABOVE'
-                },
-                {
-                    category: 'HARM_CATEGORY_HATE_SPEECH',
-                    threshold: 'BLOCK_MEDIUM_AND_ABOVE'
-                },
-                {
-                    category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-                    threshold: 'BLOCK_MEDIUM_AND_ABOVE'
-                },
-                {
-                    category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-                    threshold: 'BLOCK_MEDIUM_AND_ABOVE'
-                }
-            ]
+            model: model,
+            messages: messages,
+            temperature: 0.7,
+            max_tokens: 2048,
+            stream: false
         };
         
         const response = await fetch(url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'User-Agent': 'SmartKidneyMonitor/1.0'
+                'Authorization': `Bearer ${apiKey}`
             },
             body: JSON.stringify(requestBody),
-            timeout: 30000 // 30 second timeout
+            timeout: 30000
         });
 
         console.log(`📨 Response Status: ${response.status} ${response.statusText}`);
 
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('❌ Gemini API HTTP Error:', errorText.substring(0, 200));
+            console.error('❌ Grok API HTTP Error:', errorText.substring(0, 200));
             let errorData;
             try {
                 errorData = JSON.parse(errorText);
@@ -472,45 +573,23 @@ async function callGoogleGenAI(userMessage, systemPrompt, conversationContext, a
                 errorData = { error: { message: errorText || 'Unknown error' } };
             }
             const errorMsg = errorData?.error?.message || 'Unknown error';
-            console.error(`Error details: ${errorMsg}`);
-            throw new Error(`Google Gemini API error (${response.status}): ${errorMsg}`);
+            throw new Error(`Grok API error (${response.status}): ${errorMsg}`);
         }
 
-        let data;
-        try {
-            data = await response.json();
-        } catch (parseError) {
-            console.error('❌ Failed to parse Gemini response:', parseError.message);
-            throw new Error('Failed to parse Gemini API response');
-        }
-
-        console.log('✓ Received response from Gemini API');
+        const data = await response.json();
+        console.log('✓ Received response from Grok API');
         
-        // Handle Gemini response format
-        if (data.candidates && Array.isArray(data.candidates) && data.candidates.length > 0) {
-            const content = data.candidates[0].content;
-            if (content && Array.isArray(content.parts) && content.parts.length > 0) {
-                const responseText = content.parts[0].text;
-                if (responseText && typeof responseText === 'string') {
-                    console.log('✅ Gemini API Response Successful - Got text content');
-                    return responseText;
-                }
-            }
-        }
-
-        if (data.promptFeedback) {
-            console.warn('⚠️ Gemini Safety Filter Triggered:', data.promptFeedback.blockReason || 'Unknown');
-            throw new Error('Response blocked by safety filter');
+        if (data.choices && data.choices.length > 0 && data.choices[0].message) {
+            console.log('✅ Grok API Response Successful - Got text content');
+            return data.choices[0].message.content;
         }
         
-        console.error('❌ Invalid response structure from Gemini:', JSON.stringify(data).substring(0, 200));
-        throw new Error('Invalid or empty response from Gemini API');
+        throw new Error('Invalid or empty response from Grok API');
         
     } catch (error) {
-        console.error('❌ Gemini API Call Failed:', error.message);
-        console.error('Stack trace:', error.stack?.substring(0, 200));
+        console.error('❌ Grok API Call Failed:', error.message);
         console.log('Falling back to local AI...');
-        throw error;  // Will be caught by generateAIResponse and fallback to local AI
+        throw error;
     }
 }
 
@@ -1043,19 +1122,49 @@ let packetCount = 0;
 const TOTAL_PACKETS = 180;
 let testInProgress = false;
 
-function startNewTest() {
-    if (!testInProgress) {
-        testInProgress = true;
-        packetCount = 0;
-        testSessionId++;
-        console.log(`Starting new test session: ${testSessionId}`);
+function startNewTest(mode = 'hardware') {
+    testInProgress = true;
+    packetCount = 0;
+    testSessionId++;
+    currentTestMode = mode;
+    testCollectedData = { heartRates: [], temperatures: [], spo2Values: [] };
+    console.log(`Starting new test session: ${testSessionId} [Mode: ${mode}]`);
+
+    broadcastMessage({
+        type: 'test_started',
+        payload: {
+            testId: `TEST-${testSessionId.toString().padStart(3, '0')}`,
+            mode: mode
+        }
+    });
+
+    if (mode === 'simulation') {
+        startSimulation();
     }
+}
+
+function startSimulation() {
+    if (simulationInterval) clearInterval(simulationInterval);
+    simulationInterval = setInterval(() => {
+        if (!testInProgress) {
+            clearInterval(simulationInterval);
+            simulationInterval = null;
+            return;
+        }
+        simulateSensorData();
+        simulateTestProgress();
+    }, 1000);
 }
 
 function stopTest() {
     testInProgress = false;
     packetCount = 0;
+    if (simulationInterval) {
+        clearInterval(simulationInterval);
+        simulationInterval = null;
+    }
     console.log('Test stopped');
+    broadcastMessage({ type: 'test_stopped' });
 }
 
 function simulateTestProgress() {
@@ -1177,20 +1286,23 @@ server.listen(PORT, HOST, () => {
     );
 });
 
-// Start a new test when server starts
-console.log('🔧 Initializing test simulator...');
-startNewTest();
-
-// Simulate data for demonstration (in a real app, this would come from ESP32)
-console.log('⏱️ Starting data simulation interval...');
-const simulationInterval = setInterval(() => {
-    try {
-        simulateSensorData();
-        simulateTestProgress();
-    } catch (error) {
-        console.error('❌ Error in simulation:', error.message);
+// Hardware Timeout Watchdog (checks every 2 seconds)
+setInterval(() => {
+    if (hardwareState.connected) {
+        const elapsedSinceLastSeen = Date.now() - hardwareState.lastSeen;
+        if (elapsedSinceLastSeen > 7000) {
+            console.log('⚠️ Hardware connection timed out (no packets received for 7s)');
+            hardwareState.connected = false;
+            hardwareState.fingerDetected = false;
+            broadcastMessage({
+                type: 'hardware_status',
+                payload: hardwareState
+            });
+        }
     }
-}, 1000);
+}, 2000);
+
+console.log('🩺 Smart Hardware Mode active: Waiting for device connection.');
 
 console.log('✅ Server fully initialized and running!');
 
